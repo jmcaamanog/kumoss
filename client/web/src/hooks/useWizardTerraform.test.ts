@@ -124,16 +124,6 @@ describe("useWizardTerraform — handleOutcome", () => {
       { wrapper: Wrapper },
     );
 
-    act(() =>
-      result.current.session.updateSession({
-        uuid: "sess-1",
-        code: "previous code",
-        terraform_report: { status: "ok" },
-      }),
-    );
-
-    // A rejected round's turn is written by the backend like any other:
-    // its reply is the rationale, stored unchanged.
     const outcome: SessionOutcome = {
       kind: "rejected",
       detail: makeSessionDetail({
@@ -143,6 +133,12 @@ describe("useWizardTerraform — handleOutcome", () => {
         ],
       }),
       rationale: "Query is off-topic",
+      prior: {
+        report: { status: "ok" },
+        compliance: null,
+        code: "previous code",
+        planTargets: [],
+      },
     };
 
     act(() => result.current.terraform.handleOutcome(outcome));

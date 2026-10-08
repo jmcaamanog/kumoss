@@ -394,10 +394,6 @@ export function buildSessionPatch(outcome: SessionOutcome): Partial<Session> {
     history: normalizeHistory(detail.chat_history),
   };
 
-  // `planTargets` and `newFiles` are assigned whenever `code` is, never
-  // omitted: the patch is merged into the existing session, so leaving a key
-  // out would keep the previous round's addresses labelling this round's
-  // plan, or tint the wrong file as new.
   if (outcome.kind === "results") {
     patch.terraform_report = outcome.report ?? undefined;
     patch.compliance_report = outcome.compliance ?? undefined;
@@ -412,6 +408,16 @@ export function buildSessionPatch(outcome: SessionOutcome): Partial<Session> {
     patch.code = outcome.prior.code;
     patch.planTargets = outcome.prior.planTargets ?? [];
     patch.newFiles = outcome.prior.newFiles ?? [];
+  } else {
+    // Rejected without prior artifacts: clear all artifact fields so a
+    // previously loaded session's stale state doesn't bleed through the
+    // shallow merge in updateSession.
+    patch.terraform_report = undefined;
+    patch.compliance_report = undefined;
+    patch.code = undefined;
+    patch.planTargets = undefined;
+    patch.newFiles = undefined;
+    patch.applyResults = undefined;
   }
 
   return patch;

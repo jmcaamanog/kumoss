@@ -799,6 +799,23 @@ describe("buildSessionPatch", () => {
     });
   });
 
+  it("clears artifact fields for a rejected first round so stale state does not bleed through", () => {
+    const patch = buildSessionPatch({
+      kind: "rejected",
+      detail: makeSessionDetail({ current_status: "uncompleted" }),
+      rationale: "Off-topic",
+    });
+
+    expect(patch.current_status).toBe("uncompleted");
+    expect(patch.history).toBeDefined();
+    expect(patch.code).toBeUndefined();
+    expect(patch.terraform_report).toBeUndefined();
+    expect(patch.compliance_report).toBeUndefined();
+    expect(patch.planTargets).toBeUndefined();
+    expect(patch.newFiles).toBeUndefined();
+    expect(patch.applyResults).toBeUndefined();
+  });
+
   it("carries the compliance check of a results outcome", () => {
     const detail = makeSessionDetail({ is_blocked: true });
     const patch = buildSessionPatch({
@@ -824,6 +841,27 @@ describe("buildSessionPatch", () => {
       passed: false,
       violations: [{ rule_id: "NET-001" }],
     });
+  });
+
+  it("apply-results sets the report but does not touch code or compliance", () => {
+    const detail = makeSessionDetail();
+    const patch = buildSessionPatch({
+      kind: "apply-results",
+      detail,
+      round: detail.rounds[0],
+      report: { status: "Success", execution_summary: "Applied" },
+    });
+
+    expect(patch.terraform_report).toEqual({
+      status: "Success",
+      execution_summary: "Applied",
+    });
+    // code/compliance are intentionally absent from the patch so the
+    // generate round's values survive the shallow merge in updateSession.
+    expect("code" in patch).toBe(false);
+    expect("compliance_report" in patch).toBe(false);
+    expect("planTargets" in patch).toBe(false);
+    expect("newFiles" in patch).toBe(false);
   });
 });
 
