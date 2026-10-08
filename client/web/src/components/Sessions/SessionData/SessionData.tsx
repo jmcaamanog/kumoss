@@ -653,30 +653,31 @@ export default function SessionData({
 
       {/* ── Action Buttons ── */}
       <div className={styles.actions}>
-        {onToggleLock ? (
-          <button
-            type="button"
-            className={
-              session.is_blocked
-                ? styles.btnApplyInteractive
-                : styles.btnApplyOpenInteractive
-            }
-            title={session.is_blocked ? "Unlock apply" : "Lock apply"}
-            onClick={onToggleLock}
-          >
-            {lockIcon}
-            {lockLabel}
-          </button>
-        ) : (
-          <span
-            className={
-              session.is_blocked ? styles.btnApply : styles.btnApplyOpen
-            }
-          >
-            {lockIcon}
-            {lockLabel}
-          </span>
-        )}
+        {onReload &&
+          (onToggleLock ? (
+            <button
+              type="button"
+              className={
+                session.is_blocked
+                  ? styles.btnApplyInteractive
+                  : styles.btnApplyOpenInteractive
+              }
+              title={session.is_blocked ? "Unlock apply" : "Lock apply"}
+              onClick={onToggleLock}
+            >
+              {lockIcon}
+              {lockLabel}
+            </button>
+          ) : (
+            <span
+              className={
+                session.is_blocked ? styles.btnApply : styles.btnApplyOpen
+              }
+            >
+              {lockIcon}
+              {lockLabel}
+            </span>
+          ))}
         {onReload && (
           <button type="button" className={styles.btnReload} onClick={onReload}>
             <ReplayIcon className={styles.btnIcon} />
