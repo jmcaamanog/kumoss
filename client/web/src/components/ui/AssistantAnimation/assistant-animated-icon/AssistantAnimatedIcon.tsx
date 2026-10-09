@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import cn from "classnames";
-import {useEffect, useRef} from "react";
+import {useCallback, useEffect, useRef} from "react";
 import {Lottie} from "lottie-react";
 import type {LottieHandle} from "lottie-react";
 import animations from "./animations";
@@ -16,7 +16,7 @@ export interface AssistantAnimatedIconProps {
     isPaused?: boolean;
     isStopped?: boolean;
     loop?: boolean;
-    phase: "icon" | "listening" | "speaking" | "loading" | "standby" | "error";
+    phase: "listening" | "speaking" | "standby" | "error";
     speed?: number;
     theme: "blue" | "white";
     width?: number;
@@ -29,7 +29,7 @@ export const AssistantAnimatedIcon = ({
                                           isPaused = false,
                                           isStopped = false,
                                           loop = true,
-                                          phase = "icon",
+                                          phase = "standby",
                                           speed = 1,
                                           theme = "blue",
                                           width = 30,
@@ -48,6 +48,16 @@ export const AssistantAnimatedIcon = ({
         }
     }, [isStopped, isPaused]);
 
+    // lottie-react v3 silently disables autoplay when prefers-reduced-motion
+    // is active, and the Lottie component needs two renders to mount (display
+    // ref callback → state update → second render). The useEffect above fires
+    // too early (before the animation item exists). This callback fires after
+    // each load completes, guaranteeing the item is ready.
+    const handleReady = useCallback(() => {
+        if (!lottieRef.current || !autoplay || isStopped || isPaused) return;
+        lottieRef.current.play();
+    }, [autoplay, isStopped, isPaused]);
+
     return (
         <div
             className={cn(styles.assistantAnimatedIcon, className)}
@@ -58,6 +68,7 @@ export const AssistantAnimatedIcon = ({
                 loop={loop}
                 speed={speed}
                 autoplay={autoplay}
+                subscriptions={{ready: handleReady}}
                 style={{width, height}}
             />
         </div>

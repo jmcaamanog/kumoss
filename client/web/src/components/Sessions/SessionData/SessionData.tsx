@@ -471,7 +471,10 @@ export default function SessionData({
                                       tabIndex={0}
                                       aria-label={`${STRINGS.sessions.artifactOpen} ${label}`}
                                       onKeyDown={(e) => {
-                                        if (e.key === "Enter" || e.key === " ") {
+                                        if (
+                                          e.key === "Enter" ||
+                                          e.key === " "
+                                        ) {
                                           e.preventDefault();
                                           setArtifactParam({ kind, artifact });
                                         }
@@ -489,7 +492,9 @@ export default function SessionData({
                                       </Typography>
                                       {targets.length > 0 && (
                                         <span
-                                          className={styles.timelineOpTargetChip}
+                                          className={
+                                            styles.timelineOpTargetChip
+                                          }
                                         >
                                           {targetCountLabel(targets.length)}
                                         </span>
