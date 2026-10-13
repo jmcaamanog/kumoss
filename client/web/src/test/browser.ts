@@ -110,11 +110,18 @@ function fallbackSeed() {
 
 async function seed() {
   try {
-    const localSeeds = await import("./seeds");
-    localSeeds.seed();
+    const loadSeeds = import.meta.glob<{ seed: () => void }>(
+      "./seeds/index.ts",
+    )["./seeds/index.ts"];
+    if (loadSeeds) {
+      const localSeeds = await loadSeeds();
+      localSeeds.seed();
+      return;
+    }
   } catch {
-    fallbackSeed();
+    // Fall through to the committed fixtures.
   }
+  fallbackSeed();
 }
 
 const browserHandlers = [...sessionHandlers];
