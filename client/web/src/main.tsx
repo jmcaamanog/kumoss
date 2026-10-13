@@ -33,6 +33,11 @@ function BootstrapError() {
 async function bootstrap() {
   const root = createRoot(document.getElementById("root")!);
 
+  if (import.meta.env.VITE_MOCK_API === "true") {
+    const { startMockWorker } = await import("@/test/browser");
+    await startMockWorker();
+  }
+
   try {
     await loadAuthConfig();
   } catch {

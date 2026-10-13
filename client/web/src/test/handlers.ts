@@ -18,6 +18,7 @@ import type {
   PaginatedSessionSummary,
   SessionDetail,
   SessionSummary,
+  UserMeResponse,
 } from "@/types/api";
 
 /** What the SPA bootstrap reads. S3/RustFS prefix, auth disabled. */
@@ -157,8 +158,243 @@ export function projectAdminDetail(
   };
 }
 
+// ─── Mock artifact content for blob storage URLs ──────────
+
+const MOCK_GENERATE_REPORT = JSON.stringify({
+  execution_summary:
+    "Successfully generated Terraform configuration with 4 resources.",
+  potential_impact: {
+    banner: {
+      level: "info",
+      title: "Infrastructure Changes",
+      description: "New resources will be created in your environment.",
+    },
+    summary: "This change introduces 4 new resources with no modifications to existing infrastructure.",
+    bullet_points: [
+      { icon: "add", text: "4 resources will be created" },
+      { icon: "info", text: "No existing resources will be modified" },
+    ],
+  },
+  estimated_costs: {
+    currency: "USD",
+    total_fixed_monthly_cost: 125.5,
+    introduction_paragraph:
+      "Estimated monthly costs based on the resources being provisioned.",
+    breakdown: [
+      { resource: "azurerm_virtual_network.main", monthly_cost: 0 },
+      { resource: "azurerm_subnet.frontend", monthly_cost: 0 },
+      { resource: "azurerm_subnet.backend", monthly_cost: 0 },
+      {
+        resource: "azurerm_network_security_group.nsg",
+        monthly_cost: 125.5,
+      },
+    ],
+  },
+  detailed_changes: [
+    {
+      name: "azurerm_virtual_network.main",
+      action: "create",
+      resource_type: "azurerm_virtual_network",
+      before: {},
+      after: {
+        name: "vnet-nebula-dev",
+        address_space: ["10.0.0.0/16"],
+        location: "westeurope",
+      },
+    },
+    {
+      name: "azurerm_subnet.frontend",
+      action: "create",
+      resource_type: "azurerm_subnet",
+      before: {},
+      after: {
+        name: "snet-frontend",
+        address_prefixes: ["10.0.1.0/24"],
+      },
+    },
+  ],
+});
+
+const MOCK_APPLY_REPORT = JSON.stringify({
+  status: "succeeded",
+  execution_summary: "Apply completed successfully. 4 resources created, 0 changed, 0 destroyed.",
+  resource_changes: [
+    {
+      resource_name: "azurerm_virtual_network.main",
+      action: "create",
+      status: "succeeded",
+      details: "Created virtual network vnet-nebula-dev.",
+    },
+    {
+      resource_name: "azurerm_subnet.frontend",
+      action: "create",
+      status: "succeeded",
+      details: "Created subnet snet-frontend.",
+    },
+  ],
+  recommendations: [
+    "Consider enabling DDoS protection on the virtual network for production workloads.",
+  ],
+});
+
+const MOCK_DRIFT_REPORT = JSON.stringify({
+  status: "drifted",
+  summary: "Detected drift in 2 resources. Remediation plan generated.",
+  remediated_resources: [
+    {
+      resource_address: "azurerm_network_security_group.nsg",
+      drift_type: "changed",
+      drift_summary: "Security rule priority was modified outside Terraform.",
+      before: { priority: 100 },
+      after: { priority: 200 },
+    },
+  ],
+  unreconciled_drift: [],
+  whitelisted_exceptions: [],
+});
+
+const MOCK_IMPORT_REPORT = JSON.stringify({
+  status: "succeeded",
+  summary: "Successfully imported 2 resources into Terraform state.",
+  imported_resources: [
+    {
+      resource_address: "azurerm_resource_group.existing",
+      import_id: "/subscriptions/sub-123/resourceGroups/rg-existing",
+      status: "imported",
+    },
+  ],
+  excluded_resources: [],
+  state_alignment: "All imported resources are aligned with the current state.",
+  recommendations: [],
+});
+
+const MOCK_COMPLIANCE_REPORT = JSON.stringify({
+  passed: false,
+  summary: "2 of 5 rules violated.",
+  violations: [
+    {
+      rule_id: "SEC-001",
+      severity: "warning",
+      resource: "azurerm_network_security_group.nsg",
+      message: "NSG allows inbound traffic on port 22 from any source.",
+      suggested_fix: "Restrict SSH access to known IP ranges.",
+    },
+    {
+      rule_id: "TAG-001",
+      severity: "info",
+      resource: "azurerm_virtual_network.main",
+      message: "Resource is missing the 'owner' tag.",
+      suggested_fix: "Add an 'owner' tag to all resources.",
+    },
+  ],
+  checked_rules: [
+    "SEC-001: No open SSH",
+    "SEC-002: Encryption at rest",
+    "TAG-001: Owner tag required",
+    "TAG-002: Environment tag required",
+    "NET-001: No public IPs on internal subnets",
+  ],
+});
+
+const MOCK_PLAN_TEXT = `Terraform will perform the following actions:
+
+  # azurerm_virtual_network.main will be created
+  + resource "azurerm_virtual_network" "main" {
+      + address_space       = ["10.0.0.0/16"]
+      + id                  = (known after apply)
+      + location            = "westeurope"
+      + name                = "vnet-nebula-dev"
+      + resource_group_name = "rg-nebula-dev"
+    }
+
+  # azurerm_subnet.frontend will be created
+  + resource "azurerm_subnet" "frontend" {
+      + address_prefixes     = ["10.0.1.0/24"]
+      + id                   = (known after apply)
+      + name                 = "snet-frontend"
+      + resource_group_name  = "rg-nebula-dev"
+      + virtual_network_name = "vnet-nebula-dev"
+    }
+
+Plan: 2 to add, 0 to change, 0 to destroy.`;
+
+const MOCK_CODE_CHANGE_DIFF = `diff --git a/environments/dev/main.tf b/environments/dev/main.tf
+new file mode 100644
+index 0000000..a1b2c3d
+--- /dev/null
++++ b/environments/dev/main.tf
+@@ -0,0 +1,25 @@
++resource "azurerm_virtual_network" "main" {
++  name                = "vnet-nebula-dev"
++  address_space       = ["10.0.0.0/16"]
++  location            = azurerm_resource_group.main.location
++  resource_group_name = azurerm_resource_group.main.name
++}
++
++resource "azurerm_subnet" "frontend" {
++  name                 = "snet-frontend"
++  resource_group_name  = azurerm_resource_group.main.name
++  virtual_network_name = azurerm_virtual_network.main.name
++  address_prefixes     = ["10.0.1.0/24"]
++}`;
+
+function artifactResponse(url: string): Response {
+  const path = new URL(url).pathname;
+
+  if (path.includes("/compliance/")) {
+    return new Response(MOCK_COMPLIANCE_REPORT, {
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  if (path.includes("/reports/")) {
+    const filename = path.split("/").pop() ?? "";
+    let body = MOCK_GENERATE_REPORT;
+    if (filename.startsWith("apply")) body = MOCK_APPLY_REPORT;
+    else if (filename.startsWith("drift")) body = MOCK_DRIFT_REPORT;
+    else if (filename.startsWith("import")) body = MOCK_IMPORT_REPORT;
+    return new Response(body, {
+      headers: { "content-type": "application/json" },
+    });
+  }
+
+  if (path.includes("/plans/")) {
+    return new Response(MOCK_PLAN_TEXT, {
+      headers: {
+        "content-type": "text/plain",
+        "x-amz-meta-type": "plan",
+      },
+    });
+  }
+
+  if (path.includes("/changes/")) {
+    return new Response(MOCK_CODE_CHANGE_DIFF, {
+      headers: {
+        "content-type": "text/plain",
+        "x-amz-meta-new_file": "false",
+      },
+    });
+  }
+
+  return new Response("mock artifact", {
+    headers: { "content-type": "text/plain" },
+  });
+}
+
+export const DEFAULT_MOCK_USER: UserMeResponse = {
+  id: 1,
+  email: "mock-user@example.com",
+  display_name: "Mock User",
+  operation_role: "devops",
+  panel_role: "admin",
+};
+
 export const sessionHandlers = [
   authConfigHandler(DEFAULT_AUTH_CONFIG),
+
+  http.get("/api/v1/users/me", () =>
+    HttpResponse.json(DEFAULT_MOCK_USER),
+  ),
 
   http.get("/api/v1/sessions/list", ({ request }) => {
     const query = readListQuery(request);
@@ -178,4 +414,28 @@ export const sessionHandlers = [
     }
     return HttpResponse.json(projectDetail(detail, request));
   }),
+
+  http.get("/api/v1/admin/sessions/list", ({ request }) => {
+    const query = readListQuery(request);
+    return HttpResponse.json(
+      paginate(filterSessions(sortedSessions(), query), query),
+    );
+  }),
+
+  http.get("/api/v1/admin/sessions", ({ request }) => {
+    const id = new URL(request.url).searchParams.get("id") ?? "";
+    const detail = mockState.getSession(id);
+    if (!detail) {
+      return HttpResponse.json(
+        { detail: "Session not found" },
+        { status: 404 },
+      );
+    }
+    return HttpResponse.json(projectAdminDetail(detail, request));
+  }),
+
+  http.get(
+    "https://kumossopenstaesc1dev001.blob.core.windows.net/kumoss-artifacts/*",
+    ({ request }) => artifactResponse(request.url),
+  ),
 ];

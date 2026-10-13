@@ -4,13 +4,13 @@
 
 """Minimal database client with only essential operations."""
 
-from typing import Any, TypeVar
 from contextlib import asynccontextmanager
+from typing import Any, TypeVar
 
-from sqlalchemy import select, func, desc, asc, text
+from sqlalchemy import asc, desc, func, select, text
 
-from src.infrastructure.database.session import SessionManager, session_manager
 from src.infrastructure.database.models import Base
+from src.infrastructure.database.session import SessionManager, session_manager
 from src.shared.logger import logging
 
 T = TypeVar("T", bound=Base)
@@ -38,7 +38,10 @@ class DatabaseClient:
 
     # ``create_all`` only ever CREATEs: it never adds a column to a table
     # that already exists. Columns introduced after a deployment's tables
-    # were created therefore need an explicit, idempotent ALTER here.
+    # were created therefore need an explicit, idempotent ALTER here. We
+    # also backfill the new column with existing data, so that the user-facing
+    # conversation view can show the internal tool output for sessions that
+    # predate the chat_history split.
     __COLUMN_MIGRATIONS: tuple[str, ...] = (
         "ALTER TABLE histories "
         "ADD COLUMN IF NOT EXISTS chat_payload JSON NOT NULL DEFAULT '[]'",
