@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: Apache-2.0
 
 import cn from "classnames";
-import { useCallback, useEffect, useRef } from "react";
+import { useEffect, useRef } from "react";
 import { Lottie } from "lottie-react";
 import type { LottieHandle } from "lottie-react";
 import animations from "./animations";
@@ -48,12 +48,6 @@ export const AssistantAnimatedIcon = ({
     }
   }, [isStopped, isPaused]);
 
-  // lottie-react guard to prevent autoplay on initial render, so we need to manually play the animation when the component is ready
-  const handleReady = useCallback(() => {
-    if (!lottieRef.current || !autoplay || isStopped || isPaused) return;
-    lottieRef.current.play();
-  }, [autoplay, isStopped, isPaused]);
-
   return (
     <div className={cn(styles.assistantAnimatedIcon, className)}>
       <Lottie
@@ -62,7 +56,6 @@ export const AssistantAnimatedIcon = ({
         loop={loop}
         speed={speed}
         autoplay={autoplay}
-        subscriptions={{ ready: handleReady }}
         style={{ width, height }}
       />
     </div>
