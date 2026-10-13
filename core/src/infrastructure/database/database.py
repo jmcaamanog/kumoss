@@ -38,15 +38,10 @@ class DatabaseClient:
 
     # ``create_all`` only ever CREATEs: it never adds a column to a table
     # that already exists. Columns introduced after a deployment's tables
-    # were created therefore need an explicit, idempotent ALTER here. We
-    # also backfill the new column with existing data, so that the user-facing
-    # conversation view can show the internal tool output for sessions that
-    # predate the chat_history split.
+    # were created therefore need an explicit, idempotent ALTER here.
     __COLUMN_MIGRATIONS: tuple[str, ...] = (
         "ALTER TABLE histories "
         "ADD COLUMN IF NOT EXISTS chat_payload JSON NOT NULL DEFAULT '[]'",
-        "UPDATE histories SET chat_payload = payload "
-        "WHERE chat_payload::text = '[]' AND payload::text != '[]'",
     )
 
     async def __create_tables(self) -> None:
