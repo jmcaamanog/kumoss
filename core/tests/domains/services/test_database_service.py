@@ -169,8 +169,8 @@ class TestSessionContextFreshness(_SessionBase):
         ctx.chat_history.append_turn(user_msg="add a vnet", assistant_msg="Done.")
         await DatabaseService.update_history(ctx)
         _ = await redis_client.connection.client.delete(
-            f"nebula:v1:session:{self.sid}:ctx",
-            f"nebula:v1:session:{self.sid}:history:v2",
+            f"kumoss:v1:session:{self.sid}:ctx",
+            f"kumoss:v1:session:{self.sid}:history:v2",
         )
 
         cold = await DatabaseService.get_session_context(self.sid)
